@@ -1,7 +1,20 @@
 <?php
 include "../db.php";
+
+/* ── Soft Delete (Deactivate) ── */
+if (isset($_GET['delete_id']) && is_numeric($_GET['delete_id'])) {
+    $delete_id = (int) $_GET['delete_id'];
+    mysqli_query($conn, "UPDATE services SET is_active=0 WHERE service_id=$delete_id");
+    header("Location: services_list.php");
+    exit;
+}
+
+/* ── Fetch All Services ── */
 $result = mysqli_query($conn, "SELECT * FROM services ORDER BY service_id DESC");
-$total = mysqli_num_rows($result);
+$total  = mysqli_num_rows($result);
+
+$active_count   = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM services WHERE is_active=1"))['c'];
+$inactive_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM services WHERE is_active=0"))['c'];
 ?>
 <!doctype html>
 <html lang="en">
@@ -16,7 +29,10 @@ $total = mysqli_num_rows($result);
   <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
     <div>
       <h2>Services</h2>
-      <p><?php echo number_format($total); ?> service<?php echo $total !== 1 ? 's' : ''; ?> available</p>
+      <p><?php echo number_format($total); ?> service<?php echo $total !== 1 ? 's' : ''; ?> &mdash;
+        <span style="color:var(--success);"><?php echo $active_count; ?> active</span>,
+        <span style="color:var(--muted);"><?php echo $inactive_count; ?> inactive</span>
+      </p>
     </div>
     <a href="services_add.php" class="btn btn-primary">+ Add Service</a>
   </div>
@@ -43,7 +59,7 @@ $total = mysqli_num_rows($result);
             </tr>
           <?php else: ?>
             <?php while ($row = mysqli_fetch_assoc($result)): ?>
-              <tr>
+              <tr style="<?php echo !$row['is_active'] ? 'opacity:0.5;' : ''; ?>">
                 <td style="color:var(--muted); font-size:13px;"><?php echo $row['service_id']; ?></td>
                 <td style="font-weight:500;"><?php echo htmlspecialchars($row['service_name']); ?></td>
                 <td style="color:var(--muted); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
@@ -59,8 +75,17 @@ $total = mysqli_num_rows($result);
                     <span class="badge" style="background:rgba(122,122,154,0.12); color:var(--muted);">Inactive</span>
                   <?php endif; ?>
                 </td>
-                <td>
+                <td style="display:flex; gap:8px; align-items:center;">
                   <a href="services_edit.php?id=<?php echo $row['service_id']; ?>" class="btn btn-ghost btn-sm">Edit</a>
+
+                  <?php if ($row['is_active'] == 1): ?>
+                    <a href="services_list.php?delete_id=<?php echo $row['service_id']; ?>"
+                       class="btn btn-sm"
+                       style="background:rgba(224,107,107,0.1); color:var(--danger); border:1px solid rgba(224,107,107,0.25);"
+                       onclick="return confirm('Deactivate \'<?php echo htmlspecialchars(addslashes($row['service_name'])); ?>\'? This will mark it as inactive.')">
+                      Deactivate
+                    </a>
+                  <?php endif; ?>
                 </td>
               </tr>
             <?php endwhile; ?>
